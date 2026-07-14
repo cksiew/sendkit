@@ -87,7 +87,6 @@ app.post("/:botToken/mcp", async (c) => {
     const authHeader = c.req.header("authorization");
     const botToken = c.req.param("botToken");
 
-    console.log(authHeader);
 
     if (!authHeader?.startsWith("Bearer ")) {
         return unauthorizedMcpResponse(c, botToken);
