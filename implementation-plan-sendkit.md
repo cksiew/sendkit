@@ -9,6 +9,7 @@ This plan turns the transcript's walkthrough into a concrete, sequenced engineer
 ## 1. Goals & Non-Goals
 
 **Goals**
+
 - Implement the business logic (parameter validation + the Telegram Bot API call) exactly once.
 - Expose that logic through four adapters without duplicating logic in any of them.
 - Ship the CLI and MCP packages to npm so they're installable without the source repo.
@@ -16,6 +17,7 @@ This plan turns the transcript's walkthrough into a concrete, sequenced engineer
 - Publish a skill so agents that have no MCP connection can still discover and use the tool via CLI fallback.
 
 **Non-goals**
+
 - The specific "send a Telegram message" operation is a placeholder — swap in any operation.
 - No auth/multi-tenant system is designed here beyond a single bot token stored locally or as an env var.
 
@@ -72,11 +74,11 @@ export interface SendMessageInput {
 }
 
 export function validateSendMessageInput(input: Partial<SendMessageInput>): SendMessageInput {
-  if (!input.chatId || input.chatId.trim() === '') {
-    throw new Error('chatId is required and cannot be empty');
+  if (!input.chatId || input.chatId.trim() === "") {
+    throw new Error("chatId is required and cannot be empty");
   }
-  if (!input.message || input.message.trim() === '') {
-    throw new Error('message is required and cannot be empty');
+  if (!input.message || input.message.trim() === "") {
+    throw new Error("message is required and cannot be empty");
   }
   return { chatId: input.chatId, message: input.message };
 }
@@ -84,15 +86,15 @@ export function validateSendMessageInput(input: Partial<SendMessageInput>): Send
 
 ```ts
 // packages/core/src/telegram.ts
-import { SendMessageInput } from './validate';
+import { SendMessageInput } from "./validate";
 
 export async function sendTelegramMessage(
   token: string,
-  input: SendMessageInput
+  input: SendMessageInput,
 ): Promise<{ ok: boolean; messageId?: number }> {
   const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ chat_id: input.chatId, text: input.message }),
   });
   const data = await res.json();
@@ -104,30 +106,30 @@ export async function sendTelegramMessage(
 ```ts
 // packages/core/src/config.ts
 // Local token storage so CLI/skill usage doesn't require re-entering a token each time.
-import { homedir } from 'os';
-import { join } from 'path';
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
+import { homedir } from "os";
+import { join } from "path";
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
 
-const CONFIG_PATH = join(homedir(), '.config', 'sendkit', 'config.json');
+const CONFIG_PATH = join(homedir(), ".config", "sendkit", "config.json");
 
 export function saveToken(token: string) {
-  mkdirSync(join(homedir(), '.config', 'sendkit'), { recursive: true });
+  mkdirSync(join(homedir(), ".config", "sendkit"), { recursive: true });
   writeFileSync(CONFIG_PATH, JSON.stringify({ telegramToken: token }));
 }
 
 export function loadToken(): string {
   if (!existsSync(CONFIG_PATH)) {
-    throw new Error('No token configured. Run: sendkit init --telegram-token <token>');
+    throw new Error("No token configured. Run: sendkit init --telegram-token <token>");
   }
-  return JSON.parse(readFileSync(CONFIG_PATH, 'utf-8')).telegramToken;
+  return JSON.parse(readFileSync(CONFIG_PATH, "utf-8")).telegramToken;
 }
 ```
 
 ```ts
 // packages/core/src/index.ts
-export * from './validate';
-export * from './telegram';
-export * from './config';
+export * from "./validate";
+export * from "./telegram";
+export * from "./config";
 ```
 
 **Milestone check:** `core` has unit tests for `validateSendMessageInput` (empty/whitespace chatId, empty message) and an integration test for `sendTelegramMessage` against a mocked fetch.
@@ -183,22 +185,22 @@ Wrap the same core in an MCP server speaking the MCP protocol over stdio, so cod
 
 ```ts
 // packages/mcp-local/src/server.ts
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { z } from 'zod';
-import { validateSendMessageInput, sendTelegramMessage, loadToken } from '@sendkit/core';
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { z } from "zod";
+import { validateSendMessageInput, sendTelegramMessage, loadToken } from "@sendkit/core";
 
-const server = new McpServer({ name: 'sendkit', version: '1.0.0' });
+const server = new McpServer({ name: "sendkit", version: "1.0.0" });
 
 server.tool(
-  'telegram',
+  "telegram",
   { chatId: z.string(), message: z.string() },
   async ({ chatId, message }) => {
     const input = validateSendMessageInput({ chatId, message });
     const token = loadToken();
     const result = await sendTelegramMessage(token, input);
-    return { content: [{ type: 'text', text: `Message sent: ${result.messageId}` }] };
-  }
+    return { content: [{ type: "text", text: `Message sent: ${result.messageId}` }] };
+  },
 );
 
 const transport = new StdioServerTransport();
@@ -228,44 +230,46 @@ Same tool definition, different transport: an HTTP server instead of stdio, so b
 
 ```ts
 // packages/mcp-remote/src/server.ts
-import express from 'express';
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
-import { z } from 'zod';
-import { validateSendMessageInput, sendTelegramMessage } from '@sendkit/core';
+import express from "express";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import { z } from "zod";
+import { validateSendMessageInput, sendTelegramMessage } from "@sendkit/core";
 
 const app = express();
 app.use(express.json());
 
-const server = new McpServer({ name: 'sendkit-remote', version: '1.0.0' });
+const server = new McpServer({ name: "sendkit-remote", version: "1.0.0" });
 
 server.tool(
-  'telegram',
+  "telegram",
   { chatId: z.string(), message: z.string() },
   async ({ chatId, message }) => {
     const input = validateSendMessageInput({ chatId, message });
     const token = process.env.TELEGRAM_BOT_TOKEN!; // env var, not local config
     const result = await sendTelegramMessage(token, input);
-    return { content: [{ type: 'text', text: `Message sent: ${result.messageId}` }] };
-  }
+    return { content: [{ type: "text", text: `Message sent: ${result.messageId}` }] };
+  },
 );
 
-app.post('/mcp', async (req, res) => {
+app.post("/mcp", async (req, res) => {
   const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
   await server.connect(transport);
   await transport.handleRequest(req, res, req.body);
 });
 
-app.listen(process.env.PORT || 3000, () => console.log('SendKit remote MCP listening'));
+app.listen(process.env.PORT || 3000, () => console.log("SendKit remote MCP listening"));
 ```
 
 **Deployment steps (Railway or equivalent):**
+
 1. Push `packages/mcp-remote` as a deployable service (Dockerfile or Railway's native Node build).
 2. Set `TELEGRAM_BOT_TOKEN` as an environment variable/secret in the hosting dashboard — never commit it.
 3. Deploy; note the resulting base URL (e.g. `https://sendkit-production.up.railway.app`).
 4. The MCP route is the base URL plus the `/mcp` suffix.
 
 **Connect it to web clients:**
+
 - **ChatGPT:** Settings → Connectors/Custom Apps → add the deployed `/mcp` URL.
 - **Claude.ai:** Settings → Connectors → add a custom connector pointing at the same `/mcp` URL.
 
@@ -295,6 +299,7 @@ npx @your-org/sendkit telegram <chat_id> "<message>"
 ```
 
 `SKILL.md` should describe:
+
 1. What SendKit does (sends a Telegram message given a chat ID and text).
 2. How to check whether a `sendkit`/`telegram` MCP tool is already connected — if so, call it directly.
 3. If not connected, fall back to `bunx @your-org/sendkit telegram <chatId> "<message>"`.
@@ -316,6 +321,7 @@ npm publish --access public --workspace packages/mcp-local
 ```
 
 **Publish the skill** to a public registry (skills.sh in the transcript):
+
 1. Push the repo (or a subfolder) publicly to GitHub, with `SKILL.md` inside a folder named exactly `sendkit`.
 2. Copy the GitHub folder URL, e.g. `https://github.com/<org>/sendkit/tree/main/skills/sendkit`.
 3. From any machine:
@@ -333,11 +339,11 @@ npx skills add https://github.com/<org>/sendkit/tree/main/skills/sendkit
 
 ## 9. End-to-End Verification Matrix
 
-| Environment | No MCP, No Skill | MCP Connected | Skill Installed, No MCP |
-|---|---|---|---|
-| Terminal (human) | CLI works directly | N/A | N/A |
-| Claude Code / OpenCode / Codex | Agent is confused, asks for clarification | Tool call via local MCP server succeeds | Agent uses skill instructions → falls back to `bunx` CLI call, succeeds |
-| chatgpt.com / claude.ai | No access to any tool | Tool call via remote MCP server succeeds | N/A (skills are installed into local agent environments, not web clients) |
+| Environment                    | No MCP, No Skill                          | MCP Connected                            | Skill Installed, No MCP                                                   |
+| ------------------------------ | ----------------------------------------- | ---------------------------------------- | ------------------------------------------------------------------------- |
+| Terminal (human)               | CLI works directly                        | N/A                                      | N/A                                                                       |
+| Claude Code / OpenCode / Codex | Agent is confused, asks for clarification | Tool call via local MCP server succeeds  | Agent uses skill instructions → falls back to `bunx` CLI call, succeeds   |
+| chatgpt.com / claude.ai        | No access to any tool                     | Tool call via remote MCP server succeeds | N/A (skills are installed into local agent environments, not web clients) |
 
 Run through every populated cell above before considering the release done.
 
