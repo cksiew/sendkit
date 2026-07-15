@@ -2,8 +2,8 @@
   "mcpServers": {
     "sendkit": {
       "type": "stdio",
-      "command": "bun",
-      "args": ["run", "dev:local-mcp"],
+      "command": "npx",
+      "args": ["-y", "@ckslabs/sendkit-mcp"],
       "env": {
         "TELEGRAM_BOT_TOKEN": "8935400877:AAFoidRC34tz8rYCG6nBxzJuHNAtBFxP4V4"
       }
