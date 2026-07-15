@@ -14,6 +14,9 @@
     "fmt:check": "oxfmt --check",
     "lint": "oxlint --deny-warnings",
     "lint:fix": "oxlint --fix",
+    "build:core": "bun run --filter @ckslabs/sendkit-core build",
+    "build:cli": "bun run --filter @ckslabs/sendkit build",
+    "build:local-mcp": "bun run --filter @ckslabs/sendkit-mcp build",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
@@ -22,5 +25,8 @@
     "oxlint": "^1.74.0",
     "tsdown": "^0.22.7",
     "typescript": "^7.0.2"
+  },
+  "dependencies": {
+    "unrun": "^0.3.1"
   }
 }
